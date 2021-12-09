@@ -2,16 +2,18 @@ import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import { paginate } from "../utils/paginate";
 import Pagination from "./pagination";
-import User from "./user";
 import GroupList from "./groupList";
 import api from "../api";
 import SearchStatus from "./searchStatus";
+import UserTable from "./usersTable";
+import _ from "lodash";
 
 const Users = ({ users: allUsers, ...rest }) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [professions, setProfessions] = useState();
     const [selectedProf, setSelectedProf] = useState();
-    const pageSize = 4;
+    const [sortBy, setSortBy] = useState({ iter: "name", order: "asc" });
+    const pageSize = 8;
 
     useEffect(() => {
         api.professions.fetchAll().then((data) => setProfessions(data));
@@ -30,12 +32,23 @@ const Users = ({ users: allUsers, ...rest }) => {
         setSelectedProf(item);
     };
 
+    const handleSort = (item) => {
+        setSortBy(item);
+    };
+
     const filteredUsers = selectedProf
-        ? allUsers.filter((user) => user.profession === selectedProf)
+        ? allUsers.filter(
+            (user) =>
+                JSON.stringify(user.profession) ===
+                JSON.stringify(selectedProf)
+        )
         : allUsers;
 
-    const count = filteredUsers.length;
-    const usersCrop = paginate(filteredUsers, currentPage, pageSize);
+    const count = filteredUsers ? filteredUsers.length : "";
+
+    const sortedUsers = _.orderBy(filteredUsers, [sortBy.path], [sortBy.order]);
+
+    const usersCrop = paginate(sortedUsers, currentPage, pageSize);
     const clearFilter = () => {
         setSelectedProf();
     };
@@ -47,32 +60,25 @@ const Users = ({ users: allUsers, ...rest }) => {
                     <GroupList
                         selectedItem={selectedProf}
                         items={professions}
-                        onItemSelect = {handleProfessionSelect}
+                        onItemSelect={handleProfessionSelect}
                     />
-                    <button className="btn btn-secondary mt-2" onClick={clearFilter}>Сброс фильтра</button>
+                    <button
+                        className="btn btn-secondary mt-2"
+                        onClick={clearFilter}
+                    >
+                        Сброс фильтра
+                    </button>
                 </div>
             )}
             <div className="d-flex flex-column">
                 <SearchStatus length={count} />
                 {count > 0 && (
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Имя</th>
-                                <th scope="col">Качества</th>
-                                <th scope="col">Провфессия</th>
-                                <th scope="col">Встретился, раз</th>
-                                <th scope="col">Оценка</th>
-                                <th scope="col">Избранное</th>
-                                <th />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {usersCrop.map((user) => (
-                                <User {...rest} {...user} key={user._id} />
-                            ))}
-                        </tbody>
-                    </table>
+                    <UserTable
+                        users={usersCrop}
+                        onSort={handleSort}
+                        selectedSort={sortBy}
+                        {...rest}
+                    />
                 )}
                 <div className="d-flex justify-content-center">
                     <Pagination
